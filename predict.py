@@ -27,7 +27,10 @@ SYSTEM = """Ты отвечаешь на тестовые вопросы по т
 Ответь только JSON без Markdown:
 {"answer_ids": ["A"], "abstain": false, "rationale": "...", "citations": ["b_0000"], "missing": ""}"""
 
-SYSTEM_NO_CONTEXT = """Ты отвечаешь на тестовые вопросы по теории функций комплексного переменного. Правильных вариантов может быть несколько; выбери все верные. Если по условию ответ нельзя определить однозначно, верни abstain=true и пустой answer_ids.
+SYSTEM_REWRITE = """Ты помогаешь искать по учебнику ТФКП. По вопросу с вариантами назови 2–3 поисковых запроса на русском: названия теорем, формул и понятий учебника, которые нужны для проверки вариантов (например «интегральная формула Коши для производных», «теорема единственности предельная точка нулей»). Не отвечай на вопрос.
+Ответь только JSON: {"queries": ["...", "..."]}"""
+
+SYSTEM_NO_CONTEXT ="""Ты отвечаешь на тестовые вопросы по теории функций комплексного переменного. Правильных вариантов может быть несколько; выбери все верные. Если по условию ответ нельзя определить однозначно, верни abstain=true и пустой answer_ids.
 Ответь только JSON без Markdown:
 {"answer_ids": ["A"], "abstain": false, "rationale": "..."}"""
 
@@ -54,11 +57,12 @@ class LLM:
         self.model = os.environ.get("LLM_MODEL", runtime["model"]["served_model_name"])
         self.submission = os.environ.get("SUBMISSION_ID", "local")
 
-    def chat(self, qid, system, user, usage):
+    def chat(self, qid, system, user, usage, max_tokens=None):
         lim = self.rt["limits_per_question"]
-        max_out = min(self.rt["max_output_tokens_per_call"], lim["output_tokens_total"] - usage["output_tokens"])
+        max_out = min(max_tokens or self.rt["max_output_tokens_per_call"],
+                      lim["output_tokens_total"] - usage["output_tokens"])
         est_in = approx_tokens(system + user) + 20
-        if (usage["llm_calls"] >= lim["llm_calls"] or max_out < 200
+        if (usage["llm_calls"] >= lim["llm_calls"] or max_out < min(200, max_tokens or 200)
                 or usage["input_tokens"] + est_in > lim["input_tokens_total"]
                 or est_in + max_out > lim["input_plus_max_output_per_request"]):
             return None
@@ -140,7 +144,13 @@ def answer(q, cfg, llm, retriever):
         return out, usage, [], trace
 
     budget = cfg["pipeline"]["context_token_budget"]
-    ranked = retriever.search(q["question"], q["options"])
+    rewrites = []
+    if cfg["pipeline"].get("rewrite"):
+        # rewriting: модель называет теоремы/понятия учебника -> дополнительные поисковые запросы
+        d = parse_json(llm.chat(q["id"], SYSTEM_REWRITE, format_question(q), usage, max_tokens=120))
+        rewrites = [str(x) for x in d.get("queries") or [] if str(x).strip()][:3]
+        trace["rewrites"] = rewrites
+    ranked = retriever.search(q["question"], q["options"], extra_queries=rewrites)
     shown = retriever.expand(ranked)
     retrieved = list(shown)
     ctx = format_context(retriever, shown, budget)
@@ -150,7 +160,7 @@ def answer(q, cfg, llm, retriever):
     missing = str(data.get("missing") or "").strip()
     if cfg["pipeline"].get("adaptive_retry") and missing:
         # адаптивный шаг: модель указала, какого факта не хватает -> повторный поиск
-        extra = retriever.search(q["question"], q["options"], extra_queries=[missing])
+        extra = retriever.search(q["question"], q["options"], extra_queries=[missing] + rewrites)
         cited = [c for c in data.get("citations") or [] if c in shown]
         new_ids = list(dict.fromkeys(cited + [b for b in retriever.expand(extra) if b not in cited]))
         retrieved += [b for b in new_ids if b not in retrieved]
