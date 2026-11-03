@@ -50,6 +50,28 @@ GOLD_ANCHORS = {
     14: [[EX_2PI]],
     15: [[TH61]],
 }
+# Авторские вопросы (own_qa.md, §§ 8, 9, 11).
+DEF82 = (50, "Определение 8.2")
+TH83 = (50, "Теорема 8.3")
+TH84 = (51, "Теорема 8.4")
+SOKH = (52, "Теорема 8.5")
+TH91 = (54, "Теорема 9.1")
+RES_POLE = (54, "Следствие 9.1")
+TH92 = (54, "Теорема 9.2")
+ROUCHE = (74, "Теорема 11.2")
+MAXMOD = (76, "Теорема 11.6")
+SCHWARZ = (77, "Теорема 11.7")
+
+OWN_ANCHORS = {
+    1: [[TH83], [DEF82, TH83]],
+    2: [[SCHWARZ]],
+    3: [[TH84, SOKH]],
+    4: [[MAXMOD]],
+    5: [[TH92], [RES_POLE, TH92]],
+    6: [[ROUCHE]],
+    7: [[TH91, RES_POLE]],
+    8: [[SCHWARZ]],
+}
 CATEGORY = {"условия": "conditions", "сопоставление": "comparison",
             "применение": "computation", "недостаточность данных": "insufficient"}
 
@@ -90,16 +112,18 @@ def main():
     ap.add_argument("--qa", required=True)
     ap.add_argument("--corpus", required=True)
     ap.add_argument("--out-prefix", default="dev")
+    ap.add_argument("--own", action="store_true", help="авторские вопросы: якоря OWN_ANCHORS, id o_NNN")
     args = ap.parse_args()
     corpus = [json.loads(l) for l in open(args.corpus, encoding="utf-8")]
     items = parse_qa(args.qa)
+    anchors, prefix = (OWN_ANCHORS, "o") if args.own else (GOLD_ANCHORS, "q")
     with open(f"{args.out_prefix}_questions.jsonl", "w", encoding="utf-8") as fq, \
          open(f"{args.out_prefix}_gold.jsonl", "w", encoding="utf-8") as fg:
         for it in items:
-            qid = f"q_{it['num']:03d}"
+            qid = f"{prefix}_{it['num']:03d}"
             fq.write(json.dumps({"id": qid, "question": it["question"], "options": it["options"]},
                                 ensure_ascii=False) + "\n")
-            sets = [[resolve(corpus, a) for a in s] for s in GOLD_ANCHORS[it["num"]]]
+            sets = [[resolve(corpus, a) for a in s] for s in anchors[it["num"]]]
             fg.write(json.dumps({"id": qid, "category": CATEGORY[it["qtype"]],
                                  "answer_ids": it["answer_ids"], "abstain": it["abstain"],
                                  "citation_sets": [] if it["abstain"] else sets,
