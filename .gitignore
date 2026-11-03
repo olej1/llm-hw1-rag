@@ -14,3 +14,4 @@ logs/
 homework_01_rag.md
 .DS_Store
 models/
+runs/
