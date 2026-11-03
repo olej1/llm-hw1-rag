@@ -13,3 +13,4 @@ logs/
 # локальные материалы задания
 homework_01_rag.md
 .DS_Store
+models/
