@@ -1,0 +1,7 @@
+name,answer_accuracy,Q,mean_input_tokens,mean_output_tokens,mean_llm_calls,mean_cost,median_latency_ms
+final,0.7333,0.7298,3179.6,352.7333,2,5102.5333,8480
+abl_no_rewrite,0.5333,0.5479,3192.6667,337.3333,1,4798,7728
+abl_no_cross_refs,0.6667,0.6813,2903.8,406.6667,2,5042.4667,8564
+final_lean,0.6667,0.6624,3132.9333,263.9333,2,4700.6667,5878
+no_context,0.6,,218.1333,293.2,1,1646.9333,4127
+baseline_bm25_single,0.5333,0.53,1987.9333,337.1333,1,3592.4667,6443
