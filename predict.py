@@ -141,7 +141,7 @@ def answer(q, cfg, llm, retriever):
 
     budget = cfg["pipeline"]["context_token_budget"]
     ranked = retriever.search(q["question"], q["options"])
-    shown = retriever.with_neighbors(ranked)
+    shown = retriever.expand(ranked)
     retrieved = list(shown)
     ctx = format_context(retriever, shown, budget)
     user = f"Фрагменты учебника:\n\n{ctx}\n\nВопрос:\n{format_question(q)}"
@@ -152,7 +152,7 @@ def answer(q, cfg, llm, retriever):
         # адаптивный шаг: модель указала, какого факта не хватает -> повторный поиск
         extra = retriever.search(q["question"], q["options"], extra_queries=[missing])
         cited = [c for c in data.get("citations") or [] if c in shown]
-        new_ids = list(dict.fromkeys(cited + [b for b in retriever.with_neighbors(extra) if b not in cited]))
+        new_ids = list(dict.fromkeys(cited + [b for b in retriever.expand(extra) if b not in cited]))
         retrieved += [b for b in new_ids if b not in retrieved]
         ctx2 = format_context(retriever, new_ids, budget)
         user2 = (f"Фрагменты учебника:\n\n{ctx2}\n\nВопрос:\n{format_question(q)}\n\n"
