@@ -150,7 +150,7 @@ class Retriever:
             for j in (i, i + 1):
                 if j < len(self.blocks):
                     nb = self.blocks[j]["block_id"]
-                    if nb not in out and (j == i or self.blocks[j]["page"] - self.blocks[i]["page"] <= 1):
+                    if nb not in out and (j == i or (self.blocks[j].get("page") or 0) - (self.blocks[i].get("page") or 0) <= 1):
                         out.append(nb)
         return out
 

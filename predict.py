@@ -104,7 +104,8 @@ def format_context(retriever, ids, budget):
     parts, used = [], 0
     for bid in ids:
         b = retriever.get(bid)
-        chunk = f"[{bid}] (с. {b['page']}; {b['section']})\n{b['text']}"
+        meta = "; ".join(x for x in (f"с. {b['page']}" if b.get("page") else "", b.get("section") or "") if x)
+        chunk = f"[{bid}]" + (f" ({meta})" if meta else "") + f"\n{b['text']}"
         t = approx_tokens(chunk)
         if used + t > budget and parts:
             continue
